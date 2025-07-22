@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Feather from 'react-native-vector-icons/Feather';
+import * as LocalAuthentication from 'expo-local-authentication';
 import {
   useColorScheme,
   StyleSheet,
@@ -16,6 +17,7 @@ import {
 } from 'react-native';
 
 export default function App() {
+  const [authenticated, setAuthenticated] = useState(false);
   const [text, setText] = useState('');
   const [todos, setTodos] = useState([]);
   const [editingTodoId, setEditingTodoId] = useState(null);
@@ -26,6 +28,31 @@ export default function App() {
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+const handleBiometricAuth = async () => {
+  const hasHardware = await LocalAuthentication.hasHardwareAsync();
+  const supported = await LocalAuthentication.supportedAuthenticationTypesAsync();
+  const enrolled = await LocalAuthentication.isEnrolledAsync();
+
+  if (!hasHardware || supported.length === 0 || !enrolled) {
+    alert('Biometric auth not supported/enabled on this device');
+    return;
+  }
+
+  const result = await LocalAuthentication.authenticateAsync({
+    promptMessage: 'Authenticate to access your To-Do List',
+    fallbackLabel: 'Enter passcode',
+    disableDeviceFallback: false, // Allows PIN/password fallback
+  });
+
+  if (result.success) {
+    setAuthenticated(true);
+  } else {
+    alert('Authentication failed');
+  }
+};
+useEffect(() => {
+  handleBiometricAuth();
+}, []);
 
   const styles = getStyles(theme);
 
@@ -109,8 +136,16 @@ export default function App() {
       return updated;
     });
   };
-
+if (!authenticated) {
   return (
+    <View style={styles.container}>
+      <Text style={styles.title}>🔐 Locked</Text>
+      <Button title="Try Again" onPress={handleBiometricAuth} />
+    </View>
+  );
+}
+  return (
+    
     <View style={styles.container}>
       <Text style={styles.title}>My To-Do List</Text>
 
